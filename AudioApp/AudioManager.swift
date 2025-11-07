@@ -43,4 +43,26 @@ class AudioManager {
         
         audioEngine.prepare()
     }
+    
+    func startRecording() throws {
+        let fileURL = FileManager.default
+                    .urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("recording_\(Date().timeIntervalSince1970).m4a")
+    
+        let input = audioEngine.inputNode
+        let format = input.inputFormat(forBus: 0)
+        
+        let file = try AVAudioFile(forWriting: fileURL, settings: format.settings)
+        
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, time in
+            try? file.write(from: buffer)
+        }
+        
+        self.audioFile = file
+        self.recordingURL = fileURL
+        
+        try audioEngine.start()
+        isRecording = true
+    }
 }
+
