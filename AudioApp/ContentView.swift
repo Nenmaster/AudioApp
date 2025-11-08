@@ -8,15 +8,39 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject var audioEngine = AudioManager()
+    
     var body: some View {
         VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+            if !audioEngine.isRecording {
+                Image(systemName: "play.circle")
+                .font(.system(size: 100))
+                .onTapGesture {
+                    Task {
+                        do {
+                            try await audioEngine.startSession()
+                            try audioEngine.startRecording()
+                            print("tapped")
+
+                        }catch {
+                            print("Audio error \(error)")
+                        }
+                    }
+                }
+            } else if audioEngine.isRecording {
+               Image(systemName: "pause.circle")
+                .font(.system(size: 100))
+                .onTapGesture {
+                    audioEngine.stopRecording()
+                    print("stop tap")
+                }
+            }
+            
         }
-        .padding()
+        
     }
+    
+
 }
 
 #Preview {

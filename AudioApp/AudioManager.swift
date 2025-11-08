@@ -9,13 +9,13 @@ import Foundation
 import AVFAudio
 
 enum AudioError: Error {
-    case unableToSetSession
+    case unableToSetSession, unableToStop
 }
 
-class AudioManager {
+class AudioManager: ObservableObject {
     var audioEngine: AVAudioEngine
     var audioFile: AVAudioFile?
-    var isRecording: Bool
+    @Published var isRecording: Bool
     var recordingURL: URL?
     
     init() {
@@ -39,7 +39,7 @@ class AudioManager {
     
     func createEngine() {
         let inputNode = audioEngine.inputNode
-        let inputFormat = inputNode.inputFormat(forBus: 0)
+        inputNode.inputFormat(forBus: 0)
         
         audioEngine.prepare()
     }
@@ -50,6 +50,7 @@ class AudioManager {
                     .appendingPathComponent("recording_\(Date().timeIntervalSince1970).m4a")
     
         let input = audioEngine.inputNode
+        input.removeTap(onBus: 0)
         let format = input.inputFormat(forBus: 0)
         
         let file = try AVAudioFile(forWriting: fileURL, settings: format.settings)
@@ -57,12 +58,26 @@ class AudioManager {
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, time in
             try? file.write(from: buffer)
         }
-        
+            
         self.audioFile = file
         self.recordingURL = fileURL
         
         try audioEngine.start()
         isRecording = true
+        print("isRecording = \(isRecording)")
+        print("recording started")
+    }
+    
+    func stopRecording() {
+        let input = audioEngine.inputNode
+        input.removeTap(onBus: 0)
+        
+        audioEngine.stop()
+        audioEngine.reset()
+        isRecording = false
+        audioFile = nil
+        print("recording stopped")
+        print("isRecordng = \(isRecording)")
     }
 }
 
