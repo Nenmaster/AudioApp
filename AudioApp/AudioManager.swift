@@ -17,6 +17,7 @@ class AudioManager: ObservableObject {
     var audioFile: AVAudioFile?
     @Published var isRecording: Bool
     var recordingURL: URL?
+    @Published var currentPower: Float = 0.0
     
     init() {
         self.audioEngine = AVAudioEngine()
@@ -57,6 +58,15 @@ class AudioManager: ObservableObject {
         
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, time in
             try? file.write(from: buffer)
+            let data = buffer.floatChannelData?[0]
+            let frameLen = Int(buffer.frameLength)
+            if let data = data {
+                let rms = sqrt((0..<frameLen).reduce(0) { $0 + pow(data[$1],2)} / Float(frameLen))
+                let avgPower = 20 * log10(rms)
+                DispatchQueue.main.async {
+                    self.currentPower = avgPower
+                }
+            }
         }
             
         self.audioFile = file

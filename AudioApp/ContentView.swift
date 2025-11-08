@@ -12,6 +12,11 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
+            Rectangle()
+                .fill(Color.red)
+                .frame(width: 300, height: CGFloat(max(10, 100 + audioEngine.currentPower)))
+                .animation(.easeOut(duration: 0.1), value: audioEngine.currentPower)
+            
             if !audioEngine.isRecording {
                 Image(systemName: "play.circle")
                 .font(.system(size: 100))
