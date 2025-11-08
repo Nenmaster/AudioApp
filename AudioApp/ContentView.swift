@@ -12,6 +12,7 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
+            Spacer(minLength: 300)
             Rectangle()
                 .fill(Color.red)
                 .frame(width: 300, height: CGFloat(max(10, 100 + audioEngine.currentPower)))
@@ -23,7 +24,6 @@ struct ContentView: View {
                 .onTapGesture {
                     Task {
                         do {
-                            try await audioEngine.startSession()
                             try audioEngine.startRecording()
                             print("tapped")
 
@@ -41,6 +41,44 @@ struct ContentView: View {
                 }
             }
             
+            List(audioEngine.recordings, id: \.self) { recording in
+                HStack(spacing: 10){
+                    Button {
+                        Task {
+                            do {
+                              try audioEngine.playRecording(url: recording)
+                            } catch {
+                                print("Playbacked failed")
+                            }
+                        }
+                    }label: {
+                        Image(systemName: audioEngine.isCurrentlyPlaying == recording ? "pause.fill" : "play.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    
+                    Text("\(recording.lastPathComponent)")
+                    
+                    Image(systemName: "waveform")
+                                    }
+                
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive){
+                        audioEngine.deleteRecording(url: recording)
+                    } label : {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
+        }
+        .onAppear {
+            Task {
+               do {
+                   try await audioEngine.startSession()
+                   try audioEngine.loadRecording()
+               }catch {
+                   print("Unable to load recording \(error)")
+               }
+            }
         }
         
     }

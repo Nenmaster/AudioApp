@@ -9,7 +9,7 @@ import Foundation
 import AVFAudio
 
 enum AudioError: Error {
-    case unableToSetSession, unableToStop
+    case unableToSetSession, unableToStop, unableToStoreRecording
 }
 
 class AudioManager: ObservableObject {
@@ -18,6 +18,9 @@ class AudioManager: ObservableObject {
     @Published var isRecording: Bool
     var recordingURL: URL?
     @Published var currentPower: Float = 0.0
+    @Published var recordings: [URL] = []
+    @Published var recordingPlayer : AVAudioPlayer?
+    @Published var isCurrentlyPlaying: URL?
     
     init() {
         self.audioEngine = AVAudioEngine()
@@ -31,7 +34,7 @@ class AudioManager: ObservableObject {
         let audioSession = AVAudioSession.sharedInstance()
         
         if await AVAudioApplication.requestRecordPermission() {
-            try audioSession.setCategory(.playAndRecord, mode: .default )
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker] )
             try audioSession.setActive(true)
         } else {
             print("User Denied recording")
@@ -78,6 +81,17 @@ class AudioManager: ObservableObject {
         print("recording started")
     }
     
+    func loadRecording() throws {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: docs, includingPropertiesForKeys: nil)
+            self.recordings = files.filter { $0.pathExtension == "m4a" }
+        } catch {
+            throw AudioError.unableToStoreRecording
+        }
+        
+    }
+    
     func stopRecording() {
         let input = audioEngine.inputNode
         input.removeTap(onBus: 0)
@@ -86,8 +100,55 @@ class AudioManager: ObservableObject {
         audioEngine.reset()
         isRecording = false
         audioFile = nil
+        do {
+            try loadRecording()
+        } catch {
+            print("Recoriding not load \(error)")
+        }
         print("recording stopped")
         print("isRecordng = \(isRecording)")
     }
+    
+    func deleteRecording(url: URL) {
+        do {
+            try FileManager.default.removeItem(at: url)
+            try loadRecording()
+        } catch {
+            print("Failed to delete")
+        }
+    }
+    
+    func playRecording(url: URL) throws {
+        if let player = recordingPlayer {
+            if player.url != url || !FileManager.default.fileExists(atPath: url.path) {
+                player.stop()
+                recordingPlayer = nil
+                isCurrentlyPlaying = nil
+            }
+        }
+        
+        if let player = recordingPlayer {
+            if player.isPlaying {
+                player.pause()
+                isCurrentlyPlaying = nil
+                return
+            } else {
+                player.play()
+                isCurrentlyPlaying = url
+                return
+            }
+        }
+        
+        do {
+            recordingPlayer = try AVAudioPlayer(contentsOf: url)
+            recordingPlayer?.prepareToPlay()
+            recordingPlayer?.play()
+            isCurrentlyPlaying = url
+        } catch {
+            print("play failed")
+        }
+        
+    }
+    
 }
 
