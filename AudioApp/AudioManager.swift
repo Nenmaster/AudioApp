@@ -22,7 +22,8 @@ class AudioManager: ObservableObject {
     @Published var playerNode : AVAudioPlayerNode?
     @Published var isCurrentlyPlaying: URL?
     @Published var isPlayingNode: Bool = false
-    
+    private var count = 0
+
     init() {
         self.audioEngine = AVAudioEngine()
         self.audioFile = nil
@@ -61,8 +62,7 @@ class AudioManager: ObservableObject {
         
         let fileURL = FileManager.default
                     .urls(for: .documentDirectory, in: .userDomainMask)[0]
-                    .appendingPathComponent("recording_\(Date().timeIntervalSince1970).m4a")
-    
+                    .appendingPathComponent("recording_\(count).m4a")
         
         let file = try AVAudioFile(forWriting: fileURL, settings: format.settings)
         
@@ -84,6 +84,7 @@ class AudioManager: ObservableObject {
         self.audioFile = file
         self.recordingURL = fileURL
         isRecording = true
+        count += 1
         
         print("isRecording = \(isRecording)")
         print("recording started")
@@ -120,6 +121,7 @@ class AudioManager: ObservableObject {
     func deleteRecording(url: URL) {
         do {
             try FileManager.default.removeItem(at: url)
+            count -= 1
             try loadRecording()
         } catch {
             print("Failed to delete")
