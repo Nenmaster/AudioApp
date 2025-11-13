@@ -19,8 +19,9 @@ class AudioManager: ObservableObject {
     var recordingURL: URL?
     @Published var currentPower: Float = 0.0
     @Published var recordings: [URL] = []
-    @Published var recordingPlayer : AVAudioPlayer?
+    @Published var playerNode : AVAudioPlayerNode?
     @Published var isCurrentlyPlaying: URL?
+    @Published var isPlayingNode: Bool = false
     
     init() {
         self.audioEngine = AVAudioEngine()
@@ -49,13 +50,19 @@ class AudioManager: ObservableObject {
     }
     
     func startRecording() throws {
+        audioEngine.stop()
+        audioEngine.reset()
+        
+        let input = audioEngine.inputNode
+        input.removeTap(onBus: 0)
+
+        
+        let format = input.inputFormat(forBus: 0)
+        
         let fileURL = FileManager.default
                     .urls(for: .documentDirectory, in: .userDomainMask)[0]
                     .appendingPathComponent("recording_\(Date().timeIntervalSince1970).m4a")
     
-        let input = audioEngine.inputNode
-        input.removeTap(onBus: 0)
-        let format = input.inputFormat(forBus: 0)
         
         let file = try AVAudioFile(forWriting: fileURL, settings: format.settings)
         
@@ -71,12 +78,13 @@ class AudioManager: ObservableObject {
                 }
             }
         }
-            
-        self.audioFile = file
-        self.recordingURL = fileURL
         
         try audioEngine.start()
+
+        self.audioFile = file
+        self.recordingURL = fileURL
         isRecording = true
+        
         print("isRecording = \(isRecording)")
         print("recording started")
     }
@@ -119,35 +127,47 @@ class AudioManager: ObservableObject {
     }
     
     func playRecording(url: URL) throws {
-        if let player = recordingPlayer {
-            if player.url != url || !FileManager.default.fileExists(atPath: url.path) {
-                player.stop()
-                recordingPlayer = nil
+        if let node = playerNode {
+            if isCurrentlyPlaying != url {
+                node.stop()
+                audioEngine.detach(node)
+                playerNode = nil
                 isCurrentlyPlaying = nil
-            }
-        }
-        
-        if let player = recordingPlayer {
-            if player.isPlaying {
-                player.pause()
-                isCurrentlyPlaying = nil
-                return
+                isPlayingNode = false
             } else {
-                player.play()
-                isCurrentlyPlaying = url
+                if isPlayingNode {
+                    node.pause()
+                    isPlayingNode = false
+                    isCurrentlyPlaying = nil
+                } else {
+                    node.play()
+                    isPlayingNode = true
+                    isCurrentlyPlaying = url
+                }
                 return
             }
         }
         
-        do {
-            recordingPlayer = try AVAudioPlayer(contentsOf: url)
-            recordingPlayer?.prepareToPlay()
-            recordingPlayer?.play()
-            isCurrentlyPlaying = url
-        } catch {
-            print("play failed")
+        let newNode = AVAudioPlayerNode()
+        playerNode = newNode
+        audioEngine.attach(newNode)
+        let audioFile = try AVAudioFile(forReading: url)
+        
+        audioEngine.connect (
+            newNode,
+            to: audioEngine.mainMixerNode,
+            format: audioFile.processingFormat
+        )
+        
+        newNode.scheduleFile(audioFile, at: nil)
+        
+        if !audioEngine.isRunning {
+            try audioEngine.start()
         }
         
+        newNode.play()
+        isCurrentlyPlaying = url
+        isPlayingNode = true
     }
     
 }

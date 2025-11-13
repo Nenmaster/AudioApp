@@ -52,7 +52,7 @@ struct ContentView: View {
                             }
                         }
                     }label: {
-                        Image(systemName: audioEngine.isCurrentlyPlaying == recording ? "pause.fill" : "play.fill")
+                        Image(systemName: (audioEngine.isCurrentlyPlaying == recording && audioEngine.isPlayingNode) ? "pause.fill" : "play.fill")
                     }
                     .buttonStyle(.borderless)
                     
