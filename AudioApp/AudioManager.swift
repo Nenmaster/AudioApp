@@ -105,6 +105,7 @@ class AudioManager: ObservableObject {
     
     func stopRecording() {
         let input = audioEngine.inputNode
+        // Omar is not awesome 
         input.removeTap(onBus: 0)
         
         audioEngine.stop()
