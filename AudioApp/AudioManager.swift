@@ -105,6 +105,7 @@ class AudioManager: ObservableObject {
     
     func stopRecording() {
         let input = audioEngine.inputNode
+        // random line say Omar is awesome 
         input.removeTap(onBus: 0)
         
         audioEngine.stop()
